@@ -1,4 +1,6 @@
-﻿using MonkeyFinder.View;
+﻿using Microsoft.Extensions.DependencyInjection;
+using MonkeyFinder.Services;
+using MonkeyFinder.View;
 
 namespace MonkeyFinder;
 
@@ -14,8 +16,16 @@ public static class MauiProgram
 				fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
 			});
 
-		builder.Services.AddSingleton<MainPage>();
+        builder.Services.AddHttpClient();
 
-		return builder.Build();
+        builder.Services.AddSingleton<IDisplayMessageService, DisplayMessageService>();
+        builder.Services.AddSingleton<IMonkeyService, MonkeyService>();
+		
+		builder.Services.AddSingleton<MonkeysViewModel>();
+        builder.Services.AddTransient<MonkeyDetailsViewModel>();
+        
+		builder.Services.AddSingleton<MainPage>();
+        builder.Services.AddTransient<DetailsPage>();
+        return builder.Build();
 	}
 }
