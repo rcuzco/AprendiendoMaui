@@ -1,4 +1,5 @@
-﻿using MonkeyFinder.Services;
+﻿using Kotlin.Contracts;
+using MonkeyFinder.Services;
 using System.Reflection;
 
 namespace MonkeyFinder.ViewModel;
@@ -9,12 +10,55 @@ public partial class MonkeysViewModel : BaseViewModel
 
     private readonly IMonkeyService _monkeyService;
     private readonly IDisplayMessageService _displayMessageService;
+    private readonly IConnectivity _connectivity;
+    private readonly IGeolocation _geolocation;
 
-    public MonkeysViewModel(IMonkeyService monkeyService, IDisplayMessageService displayMessageService)
+    [ObservableProperty]
+    bool isRefreshing;
+
+    public MonkeysViewModel(IMonkeyService monkeyService, IDisplayMessageService displayMessageService, IConnectivity connectivity, IGeolocation geolocation)
     {
         Title = "The list of monkeys!!";
         _monkeyService = monkeyService;
         _displayMessageService = displayMessageService;
+        _connectivity = connectivity;
+        _geolocation = geolocation;
+    }
+
+    [RelayCommand]
+    async Task GetClosestMonekyAsync()
+    {
+        if (IsBusy || !Monkeys.Any())
+        {
+            return;
+        }
+
+        try
+        {
+            var location = await _geolocation.GetLastKnownLocationAsync();
+            if (location is null)
+            {
+                location = await _geolocation.GetLocationAsync(
+                    new GeolocationRequest
+                    {
+                        DesiredAccuracy = GeolocationAccuracy.Medium,
+                        Timeout = TimeSpan.FromSeconds(30)
+                    });
+            }
+
+            if (location is null) return;
+
+            var first = Monkeys.OrderBy(m => location.CalculateDistance(m.Latitude, m.Longitude, DistanceUnits.Kilometers)).FirstOrDefault();
+
+            if (first is null) return;
+
+            await _displayMessageService.DisplayAlertAsync("Closest monkey", $"{first.Name} in {first.Location}", "Ok");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(ex);
+            await _displayMessageService.DisplayAlertAsync("Error!", $"Unable to get closest moneky: {ex.Message}", "OK");
+        }
     }
 
     [RelayCommand]
@@ -36,6 +80,11 @@ public partial class MonkeysViewModel : BaseViewModel
         if (IsBusy) return;
         try
         {
+            if (_connectivity.NetworkAccess != NetworkAccess.Internet)
+            {
+                await _displayMessageService.DisplayAlertAsync("Internet connectivity problem", "Check your internet connection", "OK");
+            }
+
             IsBusy = true;
             var monkeys = await _monkeyService.GetMonkeysAsync();
 
@@ -52,11 +101,12 @@ public partial class MonkeysViewModel : BaseViewModel
         catch (Exception ex)
         {
             Debug.WriteLine(ex);
-            await _displayMessageService.DisplayAlert("Error!", $"Unable to get data: {ex.Message}", "OK"); //esto deberíamos llevarlo a una interfaz y cuando necesitemos hacer cosas, usamos la interfaz
+            await _displayMessageService.DisplayAlertAsync("Error!", $"Unable to get data: {ex.Message}", "OK");
         }
         finally
         {
             IsBusy = false;
+            IsRefreshing = false;
         }
     }
 }

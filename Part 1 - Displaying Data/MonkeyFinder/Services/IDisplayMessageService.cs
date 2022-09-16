@@ -2,6 +2,6 @@
 {
     public interface IDisplayMessageService
     {
-        Task DisplayAlert(string title, string message, string buttonText);
+        Task DisplayAlertAsync(string title, string message, string buttonText);
     }
 }

@@ -8,7 +8,7 @@ namespace MonkeyFinder.Services
 {
     public class DisplayMessageService : IDisplayMessageService
     {
-        public async Task DisplayAlert(string title, string message, string buttonText)
+        public async Task DisplayAlertAsync(string title, string message, string buttonText)
         {
             await Shell.Current.DisplayAlert(title, message, buttonText);
         }
